@@ -1,0 +1,499 @@
+<title>Estimador de Costo Médico Anual</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: cabecera con metadatos del modelo, dos paneles (entradas / resultado) que se apilan
+   en una columna bajo 820px, y un bloque de simulación a lo ancho al pie. */
+:root {
+  --bg: #F4F7F6;
+  --surface: #FFFFFF;
+  --surface-2: #EAF0EF;
+  --ink: #15211F;
+  --ink-soft: #4C5F5C;
+  --ink-faint: #768885;
+  --line: #D3DEDC;
+  --brand: #0C3B38;
+  --brand-ink: #F2F7F6;
+  --accent: #A8741C;
+  --accent-soft: #F6EEDC;
+  --warn: #9E3A28;
+  --ok: #2E6B4F;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1413;
+    --surface: #14201E;
+    --surface-2: #1B2A28;
+    --ink: #E8F0EE;
+    --ink-soft: #AFC3C0;
+    --ink-faint: #7E9490;
+    --line: #2A3A38;
+    --brand: #9FD6CD;
+    --brand-ink: #0C1413;
+    --accent: #D9A74C;
+    --accent-soft: #2A2316;
+    --warn: #E08A76;
+    --ok: #7CC4A0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1413;
+  --surface: #14201E;
+  --surface-2: #1B2A28;
+  --ink: #E8F0EE;
+  --ink-soft: #AFC3C0;
+  --ink-faint: #7E9490;
+  --line: #2A3A38;
+  --brand: #9FD6CD;
+  --brand-ink: #0C1413;
+  --accent: #D9A74C;
+  --accent-soft: #2A2316;
+  --warn: #E08A76;
+  --ok: #7CC4A0;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+
+/* cabecera */
+header { display: flex; flex-direction: column; gap: 18px; margin-bottom: 26px; }
+.eyebrow {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--accent);
+}
+h1 {
+  font-size: clamp(26px, 4.2vw, 36px); font-weight: 700; letter-spacing: -.02em;
+  line-height: 1.12; margin: 0; text-wrap: balance;
+}
+.sub { font-size: 15px; color: var(--ink-soft); max-width: 62ch; margin: 0; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.meta div {
+  flex: 1 1 150px; min-width: 0; padding: 12px 18px 12px 0;
+  border-right: 1px solid var(--line);
+}
+.meta div:last-child { border-right: 0; }
+.meta dt {
+  font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 3px;
+}
+.meta dd {
+  margin: 0; font-family: var(--font-num); font-size: 19px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* paneles */
+.cols { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.cols > .panel:first-child { flex: 1 1 330px; }
+.cols > .panel:last-child { flex: 1.1 1 350px; }
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 22px; min-width: 0;
+}
+.panel h2 {
+  font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 18px;
+}
+
+/* controles */
+.field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; }
+.field:last-child { margin-bottom: 0; }
+.flabel { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.flabel span:first-child { font-size: 14px; font-weight: 500; }
+.fval {
+  font-family: var(--font-num); font-size: 16px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--brand);
+}
+input[type="range"] { width: 100%; accent-color: var(--brand); height: 22px; }
+.ticks {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-num); font-size: 11px; color: var(--ink-faint);
+}
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button {
+  flex: 1 1 auto; min-width: 58px; padding: 9px 10px; cursor: pointer;
+  font-family: var(--font-ui); font-size: 14px; font-weight: 500;
+  background: var(--surface-2); color: var(--ink-soft);
+  border: 1px solid var(--line); border-radius: 7px;
+}
+.seg button[aria-pressed="true"] {
+  background: var(--brand); color: var(--brand-ink); border-color: var(--brand); font-weight: 600;
+}
+.seg button:focus-visible, input:focus-visible, .sim-toggle:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+/* resultado */
+.result-main { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
+.result-label { font-size: 13px; color: var(--ink-soft); }
+.result-value {
+  font-family: var(--font-num); font-size: clamp(34px, 6vw, 46px); font-weight: 600;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.05;
+}
+.range-row {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-family: var(--font-num); font-size: 12.5px; color: var(--ink-faint);
+  font-variant-numeric: tabular-nums; margin-top: 12px;
+}
+.range-bar {
+  position: relative; height: 8px; border-radius: 4px;
+  background: var(--surface-2); border: 1px solid var(--line); margin-top: 5px;
+}
+.range-fill { position: absolute; top: -1px; bottom: -1px; background: var(--accent-soft);
+  border: 1px solid var(--accent); border-radius: 4px; }
+.range-dot {
+  position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--brand); border: 2px solid var(--surface); transform: translate(-50%, -50%);
+}
+.range-note { font-size: 12px; color: var(--ink-faint); margin: 9px 0 0; }
+
+/* desglose */
+.breakdown { border-top: 1px solid var(--line); padding-top: 16px; }
+.breakdown h3 {
+  font-size: 12px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 11px;
+}
+.brow {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 6px 0; border-bottom: 1px dotted var(--line); font-size: 13.5px;
+}
+.brow:last-child { border-bottom: 0; }
+.brow.total { font-weight: 600; border-top: 1px solid var(--line); border-bottom: 0;
+  margin-top: 5px; padding-top: 9px; }
+.bname { color: var(--ink-soft); min-width: 0; }
+.brow.total .bname { color: var(--ink); }
+.bval { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bval.pos { color: var(--warn); }
+.bval.neg { color: var(--ok); }
+.jump { color: var(--accent); font-weight: 600; }
+
+/* simulación */
+.sim { margin-top: 20px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 22px; }
+.sim h2 {
+  font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 6px;
+}
+.sim .lead { font-size: 14px; color: var(--ink-soft); margin: 0 0 18px; max-width: 70ch; }
+.sim-toggles { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.sim-toggle {
+  display: flex; align-items: center; gap: 9px; cursor: pointer;
+  padding: 10px 14px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--surface-2); font-size: 14px; font-weight: 500; color: var(--ink-soft);
+}
+.sim-toggle[aria-pressed="true"] {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600;
+}
+.box { width: 15px; height: 15px; border: 1.5px solid var(--ink-faint); border-radius: 3px;
+  flex: none; position: relative; }
+.sim-toggle[aria-pressed="true"] .box { border-color: var(--accent); background: var(--accent); }
+.sim-toggle[aria-pressed="true"] .box::after {
+  content: ""; position: absolute; left: 4px; top: 0.5px; width: 4px; height: 8px;
+  border: solid var(--surface); border-width: 0 2px 2px 0; transform: rotate(42deg);
+}
+.compare { display: flex; flex-wrap: wrap; gap: 14px; }
+.cbox { flex: 1 1 190px; border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.cbox.delta { background: var(--surface-2); }
+.cbox dt {
+  font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 6px;
+}
+.cbox dd { margin: 0; font-family: var(--font-num); font-size: 26px; font-weight: 600;
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.cbox .pct { font-size: 13px; color: var(--ink-soft); font-family: var(--font-ui);
+  font-weight: 400; margin-top: 3px; }
+
+/* notas */
+.notes { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 18px;
+  display: flex; flex-direction: column; gap: 12px; }
+.notes h2 { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0; }
+.notes p { margin: 0; font-size: 13px; color: var(--ink-soft); max-width: 78ch; }
+.notes code { font-family: var(--font-num); font-size: 12.5px; background: var(--surface-2);
+  padding: 1px 5px; border-radius: 4px; }
+.flag { border-left: 2px solid var(--warn); padding-left: 12px; }
+.flag strong { color: var(--ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .result-value, .cbox dd { transition: color .18s ease; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">Proyecto de estimación de costos médicos · Prototipo v1.0</p>
+      <h1>Estimador de costo médico anual</h1>
+    </div>
+    <p class="sub">Estima el monto bonificado esperado para un afiliado a partir de su edad, índice de masa corporal, carga familiar y condición de tabaquismo. Entrega el valor, su intervalo al 90 % y el aporte de cada variable.</p>
+    <dl class="meta">
+      <div><dt>R² en prueba</dt><dd>0,868</dd></div>
+      <div><dt>Error medio</dt><dd>2.386</dd></div>
+      <div><dt>Cobertura del intervalo</dt><dd>95,5 %</dd></div>
+      <div><dt>Registros de ajuste</dt><dd>1.003</dd></div>
+    </dl>
+  </header>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="h-datos">
+      <h2 id="h-datos">Datos del afiliado</h2>
+
+      <div class="field">
+        <label class="flabel" for="edad"><span>Edad</span><span class="fval" id="edad-val">45 años</span></label>
+        <input type="range" id="edad" min="18" max="64" step="1" value="45">
+        <div class="ticks"><span>18</span><span>64</span></div>
+      </div>
+
+      <div class="field">
+        <label class="flabel" for="imc"><span>Índice de masa corporal</span><span class="fval" id="imc-val">33,5</span></label>
+        <input type="range" id="imc" min="16" max="53" step="0.1" value="33.5">
+        <div class="ticks"><span>16</span><span>30 · umbral de obesidad</span><span>53</span></div>
+      </div>
+
+      <div class="field">
+        <span class="flabel"><span>Número de hijos</span></span>
+        <div class="seg" id="hijos" role="group" aria-label="Número de hijos">
+          <button type="button" data-v="0">0</button>
+          <button type="button" data-v="1">1</button>
+          <button type="button" data-v="2" aria-pressed="true">2</button>
+          <button type="button" data-v="3">3</button>
+          <button type="button" data-v="4">4</button>
+          <button type="button" data-v="5">5</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="flabel"><span>Condición de tabaquismo</span></span>
+        <div class="seg" id="fuma" role="group" aria-label="Condición de tabaquismo">
+          <button type="button" data-v="1" aria-pressed="true">Fumador</button>
+          <button type="button" data-v="0">No fumador</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-result">
+      <h2 id="h-result">Estimación</h2>
+
+      <div class="result-main">
+        <span class="result-label">Costo médico anual esperado</span>
+        <span class="result-value" id="valor">42.732</span>
+      </div>
+
+      <div class="range-bar" aria-hidden="true">
+        <div class="range-fill" id="rfill"></div>
+        <div class="range-dot" id="rdot"></div>
+      </div>
+      <div class="range-row">
+        <span id="r-lo">40.694</span>
+        <span id="r-hi">58.177</span>
+      </div>
+      <p class="range-note">Intervalo al 90 %, empírico por segmento de riesgo.</p>
+
+      <div class="breakdown">
+        <h3>Aporte de cada variable</h3>
+        <div id="desglose"></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="sim" aria-labelledby="h-sim">
+    <h2 id="h-sim">Simulación de intervención preventiva</h2>
+    <p class="lead">Compara el escenario actual con uno en que el afiliado modifica los factores sobre los que la prevención puede actuar.</p>
+    <div class="sim-toggles">
+      <button type="button" class="sim-toggle" id="t-fumar" aria-pressed="false"><span class="box"></span>Deja de fumar</button>
+      <button type="button" class="sim-toggle" id="t-imc" aria-pressed="false"><span class="box"></span>Reduce el IMC a 28</button>
+    </div>
+    <dl class="compare">
+      <div class="cbox"><dt>Escenario actual</dt><dd id="s-actual">42.732</dd></div>
+      <div class="cbox"><dt>Escenario simulado</dt><dd id="s-nuevo">42.732</dd></div>
+      <div class="cbox delta"><dt>Diferencia anual</dt><dd id="s-delta">0</dd><div class="pct" id="s-pct">Sin intervención seleccionada</div></div>
+    </dl>
+  </section>
+
+  <section class="notes" aria-labelledby="h-notas">
+    <h2 id="h-notas">Notas del modelo</h2>
+    <p>Regresión lineal con dos términos de interacción entre tabaquismo e IMC, ajustada sobre 1.003 registros y evaluada sobre 335. Validación cruzada de cinco particiones: R² de 0,861 ± 0,033.</p>
+    <p><strong>Variables excluidas por resolución de cumplimiento:</strong> sexo, por ser un atributo protegido, y región, por operar como aproximación socioeconómica. El modelo no las usa.</p>
+    <p>El intervalo mostrado es empírico: usa los percentiles 2 y 98 del residuo del conjunto de ajuste, calculados por separado para cada combinación de tabaquismo e IMC. Su cobertura medida sobre el conjunto de prueba es de 95,5 %. El artefacto en Python usa regresión cuantílica, con cobertura de 92,5 %. El límite inferior se trunca en cero porque un costo no puede ser negativo.</p>
+    <p class="flag"><strong>La diferencia que entrega la simulación no es un ahorro comprometido.</strong> El modelo mide asociación observada entre grupos de afiliados, no el efecto causal de dejar de fumar o de reducir el IMC. Sirve para priorizar a quién dirigir un programa preventivo, no para proyectar su retorno.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Coeficientes del modelo ajustado (ver cuaderno 01_implementacion_tecnica.ipynb)
+  var B = {
+    intercepto:  -1412.56,
+    age:           262.75,
+    bmi:           -32.94,
+    children:      455.63,
+    fumador:      1304.34,
+    fum_x_imc:     466.24,
+    fum_x_imc30: 15589.49
+  };
+
+  // Percentiles 2 y 98 del residuo, por segmento "<fumador><imc30>"
+  var RES = {
+    "00": { lo: -2592, hi: 17684 },
+    "01": { lo: -2390, hi: 16137 },
+    "10": { lo: -1880, hi: 15587 },
+    "11": { lo: -2038, hi: 15445 }
+  };
+
+  var fmt  = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 });
+  var fmt1 = new Intl.NumberFormat("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  var num  = function (v) { return fmt.format(Math.round(v)); };
+  var sgn  = function (v) { return (v > 0 ? "+" : v < 0 ? "−" : "") + num(Math.abs(v)); };
+
+  var estado = { edad: 45, imc: 33.5, hijos: 2, fuma: 1 };
+
+  function estimar(edad, imc, hijos, fuma) {
+    var imc30 = imc >= 30 ? 1 : 0;
+    var partes = [
+      { nombre: "Valor base del modelo",        v: B.intercepto, siempre: true },
+      { nombre: "Edad · " + edad + " años",     v: B.age * edad },
+      { nombre: "IMC · " + fmt1.format(imc) + " puntos", v: B.bmi * imc },
+      { nombre: "Hijos · " + hijos,             v: B.children * hijos }
+    ];
+    if (fuma) {
+      partes.push({ nombre: "Tabaquismo",                      v: B.fumador });
+      partes.push({ nombre: "Tabaquismo × IMC",           v: B.fum_x_imc * imc });
+      if (imc30) {
+        partes.push({ nombre: "Tabaquismo × IMC ≥ 30", v: B.fum_x_imc30, salto: true });
+      }
+    }
+    var total = partes.reduce(function (a, p) { return a + p.v; }, 0);
+    var r = RES[String(fuma) + String(imc30)];
+    return {
+      total: total,
+      lo: Math.max(0, total + r.lo),
+      hi: total + r.hi,
+      partes: partes
+    };
+  }
+
+  function pintarDesglose(res) {
+    var cont = document.getElementById("desglose");
+    var html = "";
+    res.partes.forEach(function (p) {
+      if (!p.siempre && Math.round(p.v) === 0) { return; }
+      var cls = p.salto ? "jump" : (p.v > 0 ? "pos" : p.v < 0 ? "neg" : "");
+      html += '<div class="brow"><span class="bname">' + p.nombre +
+              '</span><span class="bval ' + cls + '">' + sgn(p.v) + "</span></div>";
+    });
+    html += '<div class="brow total"><span class="bname">Costo anual estimado</span>' +
+            '<span class="bval">' + num(res.total) + "</span></div>";
+    cont.innerHTML = html;
+  }
+
+  function pintarRango(res) {
+    var piso = 0, techo = 70000;
+    var pc = function (v) { return Math.max(0, Math.min(100, (v - piso) / (techo - piso) * 100)); };
+    var a = pc(res.lo), b = pc(res.hi);
+    var fill = document.getElementById("rfill");
+    fill.style.left = a + "%";
+    fill.style.width = Math.max(0.6, b - a) + "%";
+    document.getElementById("rdot").style.left = pc(res.total) + "%";
+    document.getElementById("r-lo").textContent = num(res.lo);
+    document.getElementById("r-hi").textContent = num(res.hi);
+  }
+
+  function pintarSimulacion(base) {
+    var dejar = document.getElementById("t-fumar").getAttribute("aria-pressed") === "true";
+    var bajar = document.getElementById("t-imc").getAttribute("aria-pressed") === "true";
+    var sim = estimar(
+      estado.edad,
+      bajar ? 28 : estado.imc,
+      estado.hijos,
+      dejar ? 0 : estado.fuma
+    );
+    var dif = sim.total - base.total;
+    document.getElementById("s-actual").textContent = num(base.total);
+    document.getElementById("s-nuevo").textContent  = num(sim.total);
+    document.getElementById("s-delta").textContent  = sgn(dif);
+
+    var pct = document.getElementById("s-pct");
+    if (!dejar && !bajar) {
+      pct.textContent = "Sin intervención seleccionada";
+    } else if (Math.abs(dif) < 1) {
+      pct.textContent = "Sin cambio apreciable";
+    } else {
+      var p = dif / base.total * 100;
+      pct.textContent = (dif < 0 ? "Reducción de " : "Aumento de ") +
+                        fmt1.format(Math.abs(p)) + " % respecto del escenario actual";
+    }
+    document.getElementById("s-delta").style.color =
+      dif < -1 ? "var(--ok)" : dif > 1 ? "var(--warn)" : "var(--ink)";
+  }
+
+  function render() {
+    var res = estimar(estado.edad, estado.imc, estado.hijos, estado.fuma);
+    document.getElementById("valor").textContent = num(res.total);
+    pintarRango(res);
+    pintarDesglose(res);
+    pintarSimulacion(res);
+  }
+
+  // ---- entradas ----
+  var edad = document.getElementById("edad");
+  edad.addEventListener("input", function () {
+    estado.edad = parseInt(edad.value, 10);
+    document.getElementById("edad-val").textContent = estado.edad + " años";
+    render();
+  });
+
+  var imc = document.getElementById("imc");
+  imc.addEventListener("input", function () {
+    estado.imc = parseFloat(imc.value);
+    document.getElementById("imc-val").textContent = fmt1.format(estado.imc);
+    render();
+  });
+
+  function grupo(id, clave, parse) {
+    var cont = document.getElementById(id);
+    cont.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b) { return; }
+      Array.prototype.forEach.call(cont.querySelectorAll("button"), function (x) {
+        x.setAttribute("aria-pressed", x === b ? "true" : "false");
+      });
+      estado[clave] = parse(b.dataset.v);
+      render();
+    });
+  }
+  grupo("hijos", "hijos", function (v) { return parseInt(v, 10); });
+  grupo("fuma",  "fuma",  function (v) { return parseInt(v, 10); });
+
+  ["t-fumar", "t-imc"].forEach(function (id) {
+    var b = document.getElementById(id);
+    b.addEventListener("click", function () {
+      b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      render();
+    });
+  });
+
+  document.getElementById("imc-val").textContent = fmt1.format(estado.imc);
+  render();
+}());
+</script>
